@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
 
 interface Founder {
   id: number;
@@ -148,11 +148,8 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Instructions */}
         <div className="text-center mb-8">
-          <p className="text-gray-700 mb-2">
-            Were we let in for our looks? No. Will we be judged on them? Yes.
-          </p>
           <p className="text-gray-900 font-semibold text-lg">
-            Who's Hotter? Click to Choose.
+            Whose Startup's Hotter? Click to Choose.
           </p>
         </div>
 
@@ -199,9 +196,16 @@ const Index = () => {
           <p>Total Votes Cast: {totalVotes}</p>
         </div>
 
-        {/* Rankings */}
+        {/* Top 10 Rankings */}
         <div className="mt-12">
-          <h2 className="text-2xl font-bold text-center mb-6 text-[#8B0000]">Current Rankings</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-[#8B0000]">Top 10 Rankings</h2>
+            <Link to="/rankings">
+              <Button variant="outline" className="text-[#8B0000] border-[#8B0000] hover:bg-[#8B0000] hover:text-white">
+                View Full Rankings
+              </Button>
+            </Link>
+          </div>
           <div className="max-w-2xl mx-auto">
             {founders
               .sort((a, b) => b.rating - a.rating)
