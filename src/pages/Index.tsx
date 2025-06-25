@@ -74,9 +74,9 @@ const Index = () => {
       
       console.log('Starting to load founders...');
       
-      // Try Firebase first, but with quick timeout
+      // Try Firebase first, but with reasonable timeout for production
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Firebase timeout')), 3000)
+        setTimeout(() => reject(new Error('Firebase timeout')), 10000)
       );
       
              try {
@@ -195,6 +195,13 @@ const Index = () => {
       // Try to update Firebase, but don't fail if it's unavailable
       try {
         if (!winnerId.startsWith('local-')) {
+          console.log('Attempting Firebase update for:', {
+            winnerId: winnerId.substring(0, 10) + '...',
+            loserId: loserId.substring(0, 10) + '...',
+            winnerName: winner.name,
+            loserName: loser.name
+          });
+          
           await Promise.all([
             updateFounderRatings(winnerId, loserId, newWinnerRating, newLoserRating),
             recordVote({
@@ -206,20 +213,26 @@ const Index = () => {
             })
           ]);
           
-          console.log('Firebase updated successfully');
+          console.log('✅ Firebase updated successfully');
           
           // Reload founders data from Firebase to ensure we have latest ratings
           try {
             const updatedFounders = await getFounders();
+            console.log('✅ Reloaded', updatedFounders.length, 'founders from Firebase');
             setFounders(updatedFounders);
+            
+            // Update total votes from Firebase
+            const newTotalVotes = await getTotalVotes();
+            setTotalVotes(newTotalVotes);
+            console.log('✅ Total votes updated:', newTotalVotes);
           } catch (reloadError) {
-            console.log('Could not reload from Firebase, using local updates');
+            console.warn('⚠️ Could not reload from Firebase:', reloadError);
           }
         } else {
           console.log('Using local mode - Firebase not available');
         }
       } catch (firebaseError) {
-        console.error('Firebase update failed:', firebaseError);
+        console.error('❌ Firebase update failed:', firebaseError);
         console.log('Continuing with local data only');
         // Continue with local updates only
       }
