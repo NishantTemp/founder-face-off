@@ -43,7 +43,6 @@ export const initializeFounders = async (foundersData: Omit<Founder, 'id' | 'cre
   try {
     const existingFounders = await getFounders();
     if (existingFounders.length > 0) {
-      console.log('Founders already initialized');
       return existingFounders;
     }
 
@@ -63,10 +62,8 @@ export const initializeFounders = async (foundersData: Omit<Founder, 'id' | 'cre
       });
     }
     
-    console.log('Founders initialized successfully');
     return createdFounders;
   } catch (error) {
-    console.error('Error initializing founders:', error);
     throw error;
   }
 };
@@ -82,7 +79,6 @@ export const getFounders = async (): Promise<Founder[]> => {
       ...doc.data()
     } as Founder));
   } catch (error) {
-    console.error('Error getting founders:', error);
     throw error;
   }
 };
@@ -90,13 +86,6 @@ export const getFounders = async (): Promise<Founder[]> => {
 // Update founder ratings
 export const updateFounderRatings = async (winnerId: string, loserId: string, newWinnerRating: number, newLoserRating: number) => {
   try {
-    console.log('Updating ratings:', {
-      winnerId: winnerId.substring(0, 10) + '...',
-      loserId: loserId.substring(0, 10) + '...',
-      newWinnerRating,
-      newLoserRating
-    });
-    
     const winnerRef = doc(db, FOUNDERS_COLLECTION, winnerId);
     const loserRef = doc(db, FOUNDERS_COLLECTION, loserId);
 
@@ -112,10 +101,7 @@ export const updateFounderRatings = async (winnerId: string, loserId: string, ne
         updatedAt: serverTimestamp()
       })
     ]);
-
-    console.log('✅ Founder ratings updated successfully in Firebase');
   } catch (error) {
-    console.error('❌ Error updating founder ratings:', error);
     throw error;
   }
 };
@@ -125,20 +111,11 @@ export const updateFounderRatings = async (winnerId: string, loserId: string, ne
 // Record a vote with browser fingerprint
 export const recordVote = async (vote: Omit<Vote, 'id' | 'timestamp'> & { browserId?: string }) => {
   try {
-    console.log('Recording vote:', {
-      winner: vote.winnerName,
-      loser: vote.loserName,
-      browserId: vote.browserId?.substring(0, 8) + '...'
-    });
-    
     await addDoc(collection(db, VOTES_COLLECTION), {
       ...vote,
       timestamp: serverTimestamp()
     });
-    
-    console.log('✅ Vote recorded successfully in Firebase');
   } catch (error) {
-    console.error('❌ Error recording vote:', error);
     throw error;
   }
 };
@@ -149,7 +126,6 @@ export const getTotalVotes = async (): Promise<number> => {
     const querySnapshot = await getDocs(collection(db, VOTES_COLLECTION));
     return querySnapshot.size;
   } catch (error) {
-    console.error('Error getting total votes:', error);
     return 0;
   }
 };
@@ -163,7 +139,6 @@ export const updateStats = async (totalVotes: number) => {
       lastUpdated: serverTimestamp()
     }, { merge: true });
   } catch (error) {
-    console.error('Error updating stats:', error);
     throw error;
   }
 }; 

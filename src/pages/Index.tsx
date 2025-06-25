@@ -72,7 +72,7 @@ const Index = () => {
       setLoading(true);
       setError(null);
       
-      console.log('Starting to load founders...');
+
       
       // Try Firebase first, but with reasonable timeout for production
       const timeoutPromise = new Promise((_, reject) => 
@@ -85,21 +85,15 @@ const Index = () => {
            timeoutPromise
          ]) as Founder[];
          
-         console.log('Firebase connected! Existing founders:', existingFounders.length);
-         
          if (existingFounders.length === 0) {
-           console.log('Database is empty, initializing with founder data...');
            // Try to initialize, but fall back if it fails
            try {
              const initialized = await initializeFounders(foundersData);
-             console.log('Firebase initialized with', initialized.length, 'founders');
              setFounders(initialized);
            } catch (initError) {
-             console.error('Failed to initialize Firebase:', initError);
              throw initError;
            }
          } else {
-           console.log('Using existing Firebase data');
            setFounders(existingFounders);
          }
         
@@ -108,17 +102,14 @@ const Index = () => {
           const votes = await getTotalVotes();
           setTotalVotes(votes);
         } catch (voteError) {
-          console.log('Could not load total votes, starting from 0');
           setTotalVotes(0);
         }
         
       } catch (firebaseError) {
-        console.log('Firebase unavailable, using local data:', firebaseError.message);
         throw firebaseError;
       }
       
     } catch (err) {
-      console.log('Using fallback local data');
       // Fallback to local data with proper IDs
       const fallbackFounders = foundersData.map((f, index) => ({ 
         ...f, 
@@ -207,15 +198,12 @@ const Index = () => {
             loserName: loser.name,
             browserId: rateLimiter.getBrowserId()
           })
-        ]).then(() => {
-          console.log('✅ Firebase updated in background');
-        }).catch((error) => {
-          console.warn('⚠️ Background Firebase update failed:', error);
+        ]).catch(() => {
+          // Silent fail for background updates
         });
       }
       
     } catch (err) {
-      console.error('Error handling vote:', err);
       setError('Failed to record vote. Please try again.');
     }
   };
@@ -232,8 +220,6 @@ const Index = () => {
   // Set initial pair when founders data is loaded
   useEffect(() => {
     if (founders.length >= 2 && !currentPair) {
-      console.log('Setting initial pair from:', founders.length, 'founders');
-      console.log('First founder ID type:', typeof founders[0].id, founders[0].id);
       setCurrentPair(getRandomPair(founders));
     }
   }, [founders, currentPair]);
@@ -243,10 +229,9 @@ const Index = () => {
     if (founders.length > 0 && !founders[0].id.startsWith('local-')) {
       const syncInterval = setInterval(() => {
         getFounders().then(updatedFounders => {
-          console.log('🔄 Background sync: updated founders data');
           setFounders(updatedFounders);
-        }).catch(error => {
-          console.warn('⚠️ Background sync failed:', error);
+        }).catch(() => {
+          // Silent fail for background sync
         });
       }, 30000); // Sync every 30 seconds
 
