@@ -2,87 +2,51 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
+import { 
+  Founder,
+  getFounders,
+  initializeFounders,
+  updateFounderRatings,
+  recordVote,
+  getTotalVotes
+} from '@/lib/firebaseService';
+import { rateLimiter } from '@/lib/rateLimiter';
 
-interface Founder {
-  id: number;
-  name: string;
-  company: string;
-  image: string;
-  rating: number;
-  votes: number;
-}
+import { foundersData } from '@/data/founders';
 
-const sampleFounders: Founder[] = [
-  {
-    id: 1,
-    name: "Elon Musk",
-    company: "Tesla, SpaceX",
-    image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=300&h=400&fit=crop&crop=face",
-    rating: 1200,
-    votes: 0
-  },
-  {
-    id: 2,
-    name: "Mark Zuckerberg",
-    company: "Meta",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=400&fit=crop&crop=face",
-    rating: 1200,
-    votes: 0
-  },
-  {
-    id: 3,
-    name: "Jeff Bezos",
-    company: "Amazon",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=400&fit=crop&crop=face",
-    rating: 1200,
-    votes: 0
-  },
-  {
-    id: 4,
-    name: "Tim Cook",
-    company: "Apple",
-    image: "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?w=300&h=400&fit=crop&crop=face",
-    rating: 1200,
-    votes: 0
-  },
-  {
-    id: 5,
-    name: "Satya Nadella",
-    company: "Microsoft",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=400&fit=crop&crop=face",
-    rating: 1200,
-    votes: 0
-  },
-  {
-    id: 6,
-    name: "Reid Hoffman",
-    company: "LinkedIn",
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&h=400&fit=crop&crop=face",
-    rating: 1200,
-    votes: 0
-  },
-  {
-    id: 7,
-    name: "Drew Houston",
-    company: "Dropbox",
-    image: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&h=400&fit=crop&crop=face",
-    rating: 1200,
-    votes: 0
-  },
-  {
-    id: 8,
-    name: "Brian Chesky",
-    company: "Airbnb",
-    image: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&h=400&fit=crop&crop=face",
-    rating: 1200,
-    votes: 0
-  }
-];
+// Voting Stats Component
+const VotingStats = () => {
+  const [stats, setStats] = useState(rateLimiter.getVotingStats());
+
+  useEffect(() => {
+    const updateStats = () => {
+      setStats(rateLimiter.getVotingStats());
+    };
+
+    // Update stats every 5 seconds
+    const interval = setInterval(updateStats, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex justify-center gap-4 text-xs">
+      <span>Your votes today: {stats.votesToday}/{stats.maxVotesPerDay}</span>
+      <span>This hour: {stats.votesThisHour}/{stats.maxVotesPerHour}</span>
+      <span>Unique pairs: {stats.uniquePairsVoted}</span>
+    </div>
+  );
+};
+
+// Using the real founders data
 
 const Index = () => {
-  const [founders, setFounders] = useState<Founder[]>(sampleFounders);
+  const [founders, setFounders] = useState<Founder[]>([]);
   const [currentPair, setCurrentPair] = useState<[Founder, Founder] | null>(null);
   const [totalVotes, setTotalVotes] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
+  const [cooldownTimer, setCooldownTimer] = useState<number>(0);
 
   // Elo rating calculation (original Facemash algorithm)
   const calculateEloRating = (winnerRating: number, loserRating: number) => {
@@ -97,42 +61,236 @@ const Index = () => {
   };
 
   // Get random pair of founders
-  const getRandomPair = (): [Founder, Founder] => {
-    const shuffled = [...founders].sort(() => 0.5 - Math.random());
+  const getRandomPair = (foundersArray: Founder[]): [Founder, Founder] => {
+    const shuffled = [...foundersArray].sort(() => 0.5 - Math.random());
     return [shuffled[0], shuffled[1]];
   };
 
-  // Handle vote
-  const handleVote = (winnerId: number, loserId: number) => {
-    setFounders(prevFounders => {
-      const updatedFounders = prevFounders.map(founder => {
-        if (founder.id === winnerId) {
-          const winner = founder;
-          const loser = prevFounders.find(f => f.id === loserId)!;
-          const { newWinnerRating } = calculateEloRating(winner.rating, loser.rating);
-          return { ...founder, rating: newWinnerRating, votes: founder.votes + 1 };
-        } else if (founder.id === loserId) {
-          const loser = founder;
-          const winner = prevFounders.find(f => f.id === winnerId)!;
-          const { newLoserRating } = calculateEloRating(winner.rating, loser.rating);
-          return { ...founder, rating: newLoserRating, votes: founder.votes + 1 };
+  // Load founders data - with Firebase fallback
+  const loadFounders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('Starting to load founders...');
+      
+      // Try Firebase first, but with quick timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Firebase timeout')), 3000)
+      );
+      
+             try {
+         const existingFounders = await Promise.race([
+           getFounders(),
+           timeoutPromise
+         ]) as Founder[];
+         
+         console.log('Firebase connected! Existing founders:', existingFounders.length);
+         
+         if (existingFounders.length === 0) {
+           console.log('Database is empty, initializing with founder data...');
+           // Try to initialize, but fall back if it fails
+           try {
+             const initialized = await initializeFounders(foundersData);
+             console.log('Firebase initialized with', initialized.length, 'founders');
+             setFounders(initialized);
+           } catch (initError) {
+             console.error('Failed to initialize Firebase:', initError);
+             throw initError;
+           }
+         } else {
+           console.log('Using existing Firebase data');
+           setFounders(existingFounders);
+         }
+        
+        // Try to get total votes, but don't fail if it doesn't work
+        try {
+          const votes = await getTotalVotes();
+          setTotalVotes(votes);
+        } catch (voteError) {
+          console.log('Could not load total votes, starting from 0');
+          setTotalVotes(0);
         }
-        return founder;
-      });
-      return updatedFounders;
-    });
-    
-    setTotalVotes(prev => prev + 1);
-    setCurrentPair(getRandomPair());
+        
+      } catch (firebaseError) {
+        console.log('Firebase unavailable, using local data:', firebaseError.message);
+        throw firebaseError;
+      }
+      
+    } catch (err) {
+      console.log('Using fallback local data');
+      // Fallback to local data with proper IDs
+      const fallbackFounders = foundersData.map((f, index) => ({ 
+        ...f, 
+        id: `local-${index}`,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }));
+      setFounders(fallbackFounders);
+      setTotalVotes(0);
+    } finally {
+      // Set initial random pair
+      setTimeout(() => {
+        if (founders.length >= 2) {
+          setCurrentPair(getRandomPair(founders));
+        } else {
+          // Use the fallback data for initial pair
+          const fallbackFounders = foundersData.map((f, index) => ({ 
+            ...f, 
+            id: `local-${index}`,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }));
+          if (fallbackFounders.length >= 2) {
+            setFounders(fallbackFounders);
+            setCurrentPair(getRandomPair(fallbackFounders));
+          }
+        }
+        setLoading(false);
+      }, 100);
+    }
   };
 
-  // Initialize with random pair
+  // Handle vote
+  const handleVote = async (winnerId: string, loserId: string) => {
+    try {
+      // Check rate limiting
+      const rateLimitCheck = rateLimiter.canVote(winnerId, loserId);
+      
+      if (!rateLimitCheck.allowed) {
+        setRateLimitMessage(rateLimitCheck.reason || 'Vote not allowed');
+        
+        // If there's a remaining time, start countdown
+        if (rateLimitCheck.remainingTime) {
+          setCooldownTimer(Math.ceil(rateLimitCheck.remainingTime / 1000));
+          const interval = setInterval(() => {
+            setCooldownTimer(prev => {
+              if (prev <= 1) {
+                clearInterval(interval);
+                setRateLimitMessage(null);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        } else {
+          // For other types of limits, clear message after 5 seconds
+          setTimeout(() => {
+            setRateLimitMessage(null);
+          }, 5000);
+        }
+        return;
+      }
+
+      const winner = founders.find(f => f.id === winnerId);
+      const loser = founders.find(f => f.id === loserId);
+      
+      if (!winner || !loser) return;
+      
+      const { newWinnerRating, newLoserRating } = calculateEloRating(winner.rating, loser.rating);
+      
+      // Record the vote in rate limiter first
+      rateLimiter.recordVote(winnerId, loserId);
+      
+      // Try to update Firebase, but don't fail if it's unavailable
+      try {
+        if (!winnerId.startsWith('local-')) {
+          await Promise.all([
+            updateFounderRatings(winnerId, loserId, newWinnerRating, newLoserRating),
+            recordVote({
+              winnerId,
+              loserId,
+              winnerName: winner.name,
+              loserName: loser.name,
+              browserId: rateLimiter.getBrowserId()
+            })
+          ]);
+          
+          console.log('Firebase updated successfully');
+          
+          // Reload founders data from Firebase to ensure we have latest ratings
+          try {
+            const updatedFounders = await getFounders();
+            setFounders(updatedFounders);
+          } catch (reloadError) {
+            console.log('Could not reload from Firebase, using local updates');
+          }
+        } else {
+          console.log('Using local mode - Firebase not available');
+        }
+      } catch (firebaseError) {
+        console.error('Firebase update failed:', firebaseError);
+        console.log('Continuing with local data only');
+        // Continue with local updates only
+      }
+      
+      // Update local state
+      setFounders(prevFounders => {
+        const updatedFounders = prevFounders.map(founder => {
+          if (founder.id === winnerId) {
+            return { ...founder, rating: newWinnerRating, votes: founder.votes + 1 };
+          } else if (founder.id === loserId) {
+            return { ...founder, rating: newLoserRating, votes: founder.votes + 1 };
+          }
+          return founder;
+        });
+        
+        // Set new random pair from updated data
+        setCurrentPair(getRandomPair(updatedFounders));
+        return updatedFounders;
+      });
+      
+      setTotalVotes(prev => prev + 1);
+      
+      // Clear any existing rate limit messages
+      setRateLimitMessage(null);
+      setCooldownTimer(0);
+      
+    } catch (err) {
+      console.error('Error handling vote:', err);
+      setError('Failed to record vote. Please try again.');
+    }
+  };
+
+  // Check if current pair has been voted on
+  const hasVotedOnCurrentPair = currentPair ? !rateLimiter.canVote(currentPair[0].id, currentPair[1].id).allowed &&
+    rateLimiter.canVote(currentPair[0].id, currentPair[1].id).reason === 'You have already voted on this comparison' : false;
+
+  // Initialize data on component mount
   useEffect(() => {
-    setCurrentPair(getRandomPair());
+    loadFounders();
   }, []);
 
-  if (!currentPair) {
-    return <div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#8B0000] mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Loading founders data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={loadFounders} className="bg-[#8B0000] hover:bg-[#A00000]">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentPair || founders.length < 2) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-lg text-gray-600">Not enough founders to compare.</p>
+      </div>
+    );
   }
 
   return (
@@ -151,23 +309,58 @@ const Index = () => {
           <p className="text-gray-900 font-semibold text-lg">
             Whose Startup's Hotter? Click to Choose.
           </p>
+          
+          {/* Rate Limit Message */}
+          {rateLimitMessage && (
+            <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg max-w-md mx-auto">
+              <p className="text-sm">
+                {rateLimitMessage}
+                {cooldownTimer > 0 && (
+                  <span className="font-semibold"> ({cooldownTimer}s)</span>
+                )}
+              </p>
+            </div>
+          )}
         </div>
+
+        {/* Skip button for already voted pairs */}
+        {hasVotedOnCurrentPair && (
+          <div className="text-center mb-4">
+            <Button 
+              onClick={() => setCurrentPair(getRandomPair(founders))}
+              variant="outline" 
+              className="text-[#8B0000] border-[#8B0000] hover:bg-[#8B0000] hover:text-white"
+            >
+              Skip This Comparison
+            </Button>
+          </div>
+        )}
 
         {/* Voting Interface */}
         <div className="flex flex-col md:flex-row gap-8 items-center justify-center mb-8">
           {/* Left Founder */}
-          <div className="text-center">
-            <Card className="p-4 cursor-pointer hover:shadow-lg transition-shadow border-2 border-gray-200 hover:border-[#8B0000]"
+          <div className="text-center relative">
+            <Card className={`p-4 cursor-pointer hover:shadow-lg transition-shadow border-2 ${
+              hasVotedOnCurrentPair 
+                ? 'border-gray-400 bg-gray-50 opacity-75' 
+                : 'border-gray-200 hover:border-[#8B0000]'
+            }`}
                   onClick={() => handleVote(currentPair[0].id, currentPair[1].id)}>
               <img 
                 src={currentPair[0].image} 
                 alt={currentPair[0].name}
-                className="w-48 h-64 object-cover rounded mb-4 mx-auto"
+                className="w-48 h-64 face-crop rounded mb-4 mx-auto"
               />
               <h3 className="font-semibold text-lg mb-1">{currentPair[0].name}</h3>
-              <p className="text-gray-600 text-sm mb-2">{currentPair[0].company}</p>
+              <p className="text-gray-600 text-sm mb-1">{currentPair[0].company}</p>
+              <p className="text-blue-600 text-sm mb-2">{currentPair[0].username}</p>
               <p className="text-xs text-gray-500">Rating: {currentPair[0].rating}</p>
             </Card>
+            {hasVotedOnCurrentPair && (
+              <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs">
+                ✓ Voted
+              </div>
+            )}
           </div>
 
           {/* VS */}
@@ -176,24 +369,35 @@ const Index = () => {
           </div>
 
           {/* Right Founder */}
-          <div className="text-center">
-            <Card className="p-4 cursor-pointer hover:shadow-lg transition-shadow border-2 border-gray-200 hover:border-[#8B0000]"
+          <div className="text-center relative">
+            <Card className={`p-4 cursor-pointer hover:shadow-lg transition-shadow border-2 ${
+              hasVotedOnCurrentPair 
+                ? 'border-gray-400 bg-gray-50 opacity-75' 
+                : 'border-gray-200 hover:border-[#8B0000]'
+            }`}
                   onClick={() => handleVote(currentPair[1].id, currentPair[0].id)}>
               <img 
                 src={currentPair[1].image} 
                 alt={currentPair[1].name}
-                className="w-48 h-64 object-cover rounded mb-4 mx-auto"
+                className="w-48 h-64 face-crop rounded mb-4 mx-auto"
               />
               <h3 className="font-semibold text-lg mb-1">{currentPair[1].name}</h3>
-              <p className="text-gray-600 text-sm mb-2">{currentPair[1].company}</p>
+              <p className="text-gray-600 text-sm mb-1">{currentPair[1].company}</p>
+              <p className="text-blue-600 text-sm mb-2">{currentPair[1].username}</p>
               <p className="text-xs text-gray-500">Rating: {currentPair[1].rating}</p>
             </Card>
+            {hasVotedOnCurrentPair && (
+              <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs">
+                ✓ Voted
+              </div>
+            )}
           </div>
         </div>
 
         {/* Stats */}
-        <div className="text-center text-gray-600 text-sm">
+        <div className="text-center text-gray-600 text-sm space-y-2">
           <p>Total Votes Cast: {totalVotes}</p>
+          <VotingStats />
         </div>
 
         {/* Top 10 Rankings */}
@@ -217,11 +421,12 @@ const Index = () => {
                     <img 
                       src={founder.image} 
                       alt={founder.name}
-                      className="w-12 h-12 object-cover rounded-full"
+                      className="w-12 h-12 face-crop-profile rounded-full"
                     />
                     <div>
                       <p className="font-semibold">{founder.name}</p>
                       <p className="text-sm text-gray-600">{founder.company}</p>
+                      <p className="text-xs text-blue-600">{founder.username}</p>
                     </div>
                   </div>
                   <div className="text-right">
