@@ -129,25 +129,7 @@ const Index = () => {
       setFounders(fallbackFounders);
       setTotalVotes(0);
     } finally {
-      // Set initial random pair
-      setTimeout(() => {
-        if (founders.length >= 2) {
-          setCurrentPair(getRandomPair(founders));
-        } else {
-          // Use the fallback data for initial pair
-          const fallbackFounders = foundersData.map((f, index) => ({ 
-            ...f, 
-            id: `local-${index}`,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }));
-          if (fallbackFounders.length >= 2) {
-            setFounders(fallbackFounders);
-            setCurrentPair(getRandomPair(fallbackFounders));
-          }
-        }
-        setLoading(false);
-      }, 100);
+      setLoading(false);
     }
   };
 
@@ -192,52 +174,7 @@ const Index = () => {
       // Record the vote in rate limiter first
       rateLimiter.recordVote(winnerId, loserId);
       
-      // Try to update Firebase, but don't fail if it's unavailable
-      try {
-        if (!winnerId.startsWith('local-')) {
-          console.log('Attempting Firebase update for:', {
-            winnerId: winnerId.substring(0, 10) + '...',
-            loserId: loserId.substring(0, 10) + '...',
-            winnerName: winner.name,
-            loserName: loser.name
-          });
-          
-          await Promise.all([
-            updateFounderRatings(winnerId, loserId, newWinnerRating, newLoserRating),
-            recordVote({
-              winnerId,
-              loserId,
-              winnerName: winner.name,
-              loserName: loser.name,
-              browserId: rateLimiter.getBrowserId()
-            })
-          ]);
-          
-          console.log('✅ Firebase updated successfully');
-          
-          // Reload founders data from Firebase to ensure we have latest ratings
-          try {
-            const updatedFounders = await getFounders();
-            console.log('✅ Reloaded', updatedFounders.length, 'founders from Firebase');
-            setFounders(updatedFounders);
-            
-            // Update total votes from Firebase
-            const newTotalVotes = await getTotalVotes();
-            setTotalVotes(newTotalVotes);
-            console.log('✅ Total votes updated:', newTotalVotes);
-          } catch (reloadError) {
-            console.warn('⚠️ Could not reload from Firebase:', reloadError);
-          }
-        } else {
-          console.log('Using local mode - Firebase not available');
-        }
-      } catch (firebaseError) {
-        console.error('❌ Firebase update failed:', firebaseError);
-        console.log('Continuing with local data only');
-        // Continue with local updates only
-      }
-      
-      // Update local state
+      // Update local state IMMEDIATELY for instant UX
       setFounders(prevFounders => {
         const updatedFounders = prevFounders.map(founder => {
           if (founder.id === winnerId) {
@@ -248,7 +185,7 @@ const Index = () => {
           return founder;
         });
         
-        // Set new random pair from updated data
+        // Set new random pair from updated data IMMEDIATELY
         setCurrentPair(getRandomPair(updatedFounders));
         return updatedFounders;
       });
@@ -258,6 +195,24 @@ const Index = () => {
       // Clear any existing rate limit messages
       setRateLimitMessage(null);
       setCooldownTimer(0);
+      
+      // Update Firebase in the background (don't await - fire and forget)
+      if (!winnerId.startsWith('local-')) {
+        Promise.all([
+          updateFounderRatings(winnerId, loserId, newWinnerRating, newLoserRating),
+          recordVote({
+            winnerId,
+            loserId,
+            winnerName: winner.name,
+            loserName: loser.name,
+            browserId: rateLimiter.getBrowserId()
+          })
+        ]).then(() => {
+          console.log('✅ Firebase updated in background');
+        }).catch((error) => {
+          console.warn('⚠️ Background Firebase update failed:', error);
+        });
+      }
       
     } catch (err) {
       console.error('Error handling vote:', err);
@@ -273,6 +228,31 @@ const Index = () => {
   useEffect(() => {
     loadFounders();
   }, []);
+
+  // Set initial pair when founders data is loaded
+  useEffect(() => {
+    if (founders.length >= 2 && !currentPair) {
+      console.log('Setting initial pair from:', founders.length, 'founders');
+      console.log('First founder ID type:', typeof founders[0].id, founders[0].id);
+      setCurrentPair(getRandomPair(founders));
+    }
+  }, [founders, currentPair]);
+
+  // Periodic sync with Firebase every 30 seconds (background)
+  useEffect(() => {
+    if (founders.length > 0 && !founders[0].id.startsWith('local-')) {
+      const syncInterval = setInterval(() => {
+        getFounders().then(updatedFounders => {
+          console.log('🔄 Background sync: updated founders data');
+          setFounders(updatedFounders);
+        }).catch(error => {
+          console.warn('⚠️ Background sync failed:', error);
+        });
+      }, 30000); // Sync every 30 seconds
+
+      return () => clearInterval(syncInterval);
+    }
+  }, [founders]);
 
   if (loading) {
     return (
