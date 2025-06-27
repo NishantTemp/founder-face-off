@@ -277,6 +277,17 @@ const Index = () => {
       <div className="bg-[#8B0000] text-white py-4">
         <div className="container mx-auto px-4">
           <h1 className="text-center text-2xl font-bold tracking-wider">HOTSMASH</h1>
+          <p className="text-center text-sm mt-1 opacity-90">
+            Built by{' '}
+            <a 
+              href="https://twitter.com/ChandraDvitiyah" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-white hover:underline font-medium"
+            >
+              @ChandraDvitiyah
+            </a>
+          </p>
         </div>
       </div>
 
