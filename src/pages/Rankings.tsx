@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Founder, getFounders } from '@/lib/firebaseService';
 import { foundersData } from '@/data/founders';
+import { Image as ImageKitImage } from '@imagekit/react';
 
 const Rankings = () => {
   const [founders, setFounders] = useState<Founder[]>([]);
@@ -118,10 +119,16 @@ const Rankings = () => {
                   <div key={founder.id} className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-4">
                       <span className="font-bold text-[#8B0000] w-8 text-lg">#{index + 1}</span>
-                      <img 
-                        src={founder.image} 
+                      <ImageKitImage
+                        src={founder.image}
                         alt={founder.name}
                         className="w-16 h-16 face-crop-profile rounded-full"
+                        loading="lazy"
+                        transformation={[{
+                          height: '64',
+                          width: '64',
+                          crop: 'maintain_ratio'
+                        }]}
                       />
                       <div>
                         <p className="font-semibold text-lg">{founder.name}</p>

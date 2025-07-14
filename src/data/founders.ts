@@ -1,3 +1,5 @@
+import { getImageKitPath } from '../lib/cdn';
+
 export interface FounderData {
   name: string;
   company: string;
@@ -12,7 +14,7 @@ export const foundersData: FounderData[] = [
     name: "Peter Levels",
     company: "Photo AI",
     username: "@levelsio",
-    image: "/list/levelsio.jpg",
+    image: getImageKitPath("levelsio"),
     rating: 1200,
     votes: 0
   },
@@ -20,7 +22,7 @@ export const foundersData: FounderData[] = [
     name: "Roy Lee",
     company: "Cluely",
     username: "@im_roy_lee",
-    image: "/list/im_roy_lee.jpeg",
+    image: getImageKitPath("im_roy_lee"),
     rating: 1200,
     votes: 0
   },
@@ -28,7 +30,7 @@ export const foundersData: FounderData[] = [
     name: "Indra",
     company: "Aphelion",
     username: "@IndraVahan",
-    image: "/list/IndraVahan.png",
+    image: getImageKitPath("IndraVahan"),
     rating: 1200,
     votes: 0
   },
@@ -36,7 +38,7 @@ export const foundersData: FounderData[] = [
     name: "Andrey Gao",
     company: "Devin",
     username: "@itsandrewgao",
-    image: "/list/itsandrewgao.png",
+    image: getImageKitPath("itsandrewgao"),
     rating: 1200,
     votes: 0
   },
@@ -44,7 +46,7 @@ export const foundersData: FounderData[] = [
     name: "Arvid Kahl",
     company: "Podscan",
     username: "@arvidkahl",
-    image: "/list/arvidkahl.jpeg",
+    image: getImageKitPath("arvidkahl"),
     rating: 1200,
     votes: 0
   },
@@ -52,7 +54,7 @@ export const foundersData: FounderData[] = [
     name: "Danny Postma",
     company: "HeadshotPro",
     username: "@dannypostmaa",
-    image: "/list/dannypostmaa.jpeg",
+    image: getImageKitPath("dannypostmaa"),
     rating: 1200,
     votes: 0
   },
@@ -60,7 +62,7 @@ export const foundersData: FounderData[] = [
     name: "Tony Dinh",
     company: "TypingMind",
     username: "@tdinh_me",
-    image: "/list/tdinh_me.jpeg",
+    image: getImageKitPath("tdinh_me"),
     rating: 1200,
     votes: 0
   },
@@ -68,7 +70,7 @@ export const foundersData: FounderData[] = [
     name: "Marc Lou",
     company: "ShipFast",
     username: "@marc_louvion",
-    image: "/list/marc_louvion.jpeg",
+    image: getImageKitPath("marc_louvion"),
     rating: 1200,
     votes: 0
   },
@@ -76,7 +78,7 @@ export const foundersData: FounderData[] = [
     name: "Burkay Gur",
     company: "Fal",
     username: "@burkaygur",
-    image: "/list/burkaygur.jpg",
+    image: getImageKitPath("burkaygur"),
     rating: 1200,
     votes: 0
   },
@@ -84,7 +86,7 @@ export const foundersData: FounderData[] = [
     name: "Zach",
     company: "CalAI",
     username: "@zach_yadegari",
-    image: "/list/zach_yadegari.jpeg",
+    image: getImageKitPath("zach_yadegari"),
     rating: 1200,
     votes: 0
   },
@@ -92,7 +94,7 @@ export const foundersData: FounderData[] = [
     name: "Tibo",
     company: "Outrank",
     username: "@tibo_maker",
-    image: "/list/tibo_maker.jpeg",
+    image: getImageKitPath("tibo_maker"),
     rating: 1200,
     votes: 0
   },
@@ -100,7 +102,7 @@ export const foundersData: FounderData[] = [
     name: "Desmond",
     company: "Life Reset (Rise)",
     username: "@desmondhth",
-    image: "/list/desmondhth.jpeg",
+    image: getImageKitPath("desmondhth"),
     rating: 1200,
     votes: 0
   },
@@ -108,7 +110,7 @@ export const foundersData: FounderData[] = [
     name: "Jack Fricks",
     company: "Postbridge",
     username: "@jackfriks",
-    image: "/list/jackfriks.jpeg",
+    image: getImageKitPath("jackfriks"),
     rating: 1200,
     votes: 0
   },
@@ -116,7 +118,7 @@ export const foundersData: FounderData[] = [
     name: "Blake Anderson",
     company: "UMAX",
     username: "@blakeandersonw",
-    image: "/list/blakeandersonw.jpeg",
+    image: getImageKitPath("blakeandersonw"),
     rating: 1200,
     votes: 0
   },
@@ -124,7 +126,7 @@ export const foundersData: FounderData[] = [
     name: "Saïd",
     company: "Microlaunch",
     username: "@SaidAitmbarek",
-    image: "/list/SaidAitmbarek.jpeg",
+    image: getImageKitPath("SaidAitmbarek"),
     rating: 1200,
     votes: 0
   },
@@ -132,7 +134,7 @@ export const foundersData: FounderData[] = [
     name: "Rexon Wong",
     company: "MakeAd",
     username: "@rexan_wong",
-    image: "/list/rexan_wong.jpeg",
+    image: getImageKitPath("rexan_wong"),
     rating: 1200,
     votes: 0
   },
@@ -140,7 +142,7 @@ export const foundersData: FounderData[] = [
     name: "David Park",
     company: "JenniAI",
     username: "@Davidjpark96",
-    image: "/list/Davidjpark96.jpeg",
+    image: getImageKitPath("Davidjpark96"),
     rating: 1200,
     votes: 0
   },
@@ -148,7 +150,7 @@ export const foundersData: FounderData[] = [
     name: "Abhishek",
     company: "Youform",
     username: "@themkmaker",
-    image: "/list/themkmaker.jpg",
+    image: getImageKitPath("themkmaker"),
     rating: 1200,
     votes: 0
   },
@@ -156,7 +158,7 @@ export const foundersData: FounderData[] = [
     name: "Dhravya Shah",
     company: "Supermemory",
     username: "@DhravyaShah",
-    image: "/list/DhravyaShah.jpeg",
+    image: getImageKitPath("DhravyaShah"),
     rating: 1200,
     votes: 0
   },
@@ -164,7 +166,7 @@ export const foundersData: FounderData[] = [
     name: "Aman Sanger",
     company: "Cursor AI",
     username: "@amanrsanger",
-    image: "/list/amanrsanger.jpg",
+    image: getImageKitPath("amanrsanger"),
     rating: 1200,
     votes: 0
   },
@@ -172,7 +174,7 @@ export const foundersData: FounderData[] = [
     name: "Hunter",
     company: "NGL App",
     username: "@hunterjisaacson",
-    image: "/list/hunterjisaacson.jpeg",
+    image: getImageKitPath("hunterjisaacson"),
     rating: 1200,
     votes: 0
   },
@@ -180,7 +182,7 @@ export const foundersData: FounderData[] = [
     name: "Yoni",
     company: "Brainrot App",
     username: "@YoniSmolyar",
-    image: "/list/YoniSmolyar.jpg",
+    image: getImageKitPath("YoniSmolyar"),
     rating: 1200,
     votes: 0
   },
@@ -188,7 +190,7 @@ export const foundersData: FounderData[] = [
     name: "Zach Dive",
     company: "Adam",
     username: "@zachdive",
-    image: "/list/zachdive.jpeg",
+    image: getImageKitPath("zachdive"),
     rating: 1200,
     votes: 0
   },
@@ -196,7 +198,7 @@ export const foundersData: FounderData[] = [
     name: "Anton Osika",
     company: "Lovable",
     username: "@antonosika",
-    image: "/list/antonosika.jpeg",
+    image: getImageKitPath("antonosika"),
     rating: 1200,
     votes: 0
   },
@@ -204,7 +206,7 @@ export const foundersData: FounderData[] = [
     name: "Aravind",
     company: "Perplexity",
     username: "@AravSrinivas",
-    image: "/list/AravSrinivas.webp",
+    image: getImageKitPath("AravSrinivas"),
     rating: 1200,
     votes: 0
   },
@@ -212,7 +214,7 @@ export const foundersData: FounderData[] = [
     name: "Matt",
     company: "ReelFarm",
     username: "@_mattwelter",
-    image: "/list/_mattwelter.png",
+    image: getImageKitPath("_mattwelter"),
     rating: 1200,
     votes: 0
   },
@@ -220,7 +222,7 @@ export const foundersData: FounderData[] = [
     name: "Alex Slater",
     company: "Quittr",
     username: "@alexsllater",
-    image: "/list/alexsllater.jpeg",
+    image: getImageKitPath("alexsllater"),
     rating: 1200,
     votes: 0
   },
@@ -228,7 +230,7 @@ export const foundersData: FounderData[] = [
     name: "Eddy Xu",
     company: "AI glasses",
     username: "@eddybuild",
-    image: "/list/eddybuild.jpg",
+    image: getImageKitPath("eddybuild"),
     rating: 1200,
     votes: 0
   },
@@ -236,7 +238,7 @@ export const foundersData: FounderData[] = [
     name: "Cj Zafir",
     company: "Code Guide",
     username: "@cjzafir",
-    image: "/list/cjzafir.jpg",
+    image: getImageKitPath("cjzafir"),
     rating: 1200,
     votes: 0
   },
@@ -244,7 +246,7 @@ export const foundersData: FounderData[] = [
     name: "Nizzy",
     company: "Mail0",
     username: "@nizzyabi",
-    image: "/list/nizzyabi.jpeg",
+    image: getImageKitPath("nizzyabi"),
     rating: 1200,
     votes: 0
   },
@@ -252,7 +254,7 @@ export const foundersData: FounderData[] = [
     name: "Sui Dev",
     company: "CribbleDev",
     username: "@birdabo404",
-    image: "/list/birdabo404.jpg",
+    image: getImageKitPath("birdabo404"),
     rating: 1200,
     votes: 0
   },
@@ -260,7 +262,7 @@ export const foundersData: FounderData[] = [
     name: "Eunice",
     company: "Series",
     username: "@eunifiedworld",
-    image: "/list/eunifiedworld.jpeg",
+    image: getImageKitPath("eunifiedworld"),
     rating: 1200,
     votes: 0
   },
@@ -268,7 +270,7 @@ export const foundersData: FounderData[] = [
     name: "Athas.dev",
     company: "Athas",
     username: "@athasdev",
-    image: "/list/athasdev.jpg",
+    image: getImageKitPath("athasdev"),
     rating: 1200,
     votes: 0
   },
@@ -276,7 +278,7 @@ export const foundersData: FounderData[] = [
     name: "kache/yacineMTB",
     company: "Dingboard",
     username: "@yacineMTB",
-    image: "/list/yacineMTB.png",
+    image: getImageKitPath("yacineMTB"),
     rating: 1200,
     votes: 0
   },
@@ -284,7 +286,7 @@ export const foundersData: FounderData[] = [
     name: "Patty",
     company: "globol.app",
     username: "@pattybuilds",
-    image: "/list/pattybuilds.jpeg",
+    image: getImageKitPath("pattybuilds"),
     rating: 1200,
     votes: 0
   },
@@ -292,7 +294,7 @@ export const foundersData: FounderData[] = [
     name: "Maze",
     company: "OpenCut",
     username: "@mazeincoding",
-    image: "/list/mazeincoding.jpg",
+    image: getImageKitPath("mazeincoding"),
     rating: 1200,
     votes: 0
   },
@@ -300,7 +302,7 @@ export const foundersData: FounderData[] = [
     name: "Salim/Luffy",
     company: "CallO",
     username: "@salimnunez01",
-    image: "/list/salimnunez01.jpg",
+    image: getImageKitPath("salimnunez01"),
     rating: 1200,
     votes: 0
   },
@@ -308,7 +310,7 @@ export const foundersData: FounderData[] = [
     name: "Sherry Jiang",
     company: "Peek Money",
     username: "@SherryYanJiang",
-    image: "/list/SherryYanJiang.jpg",
+    image: getImageKitPath("SherryYanJiang"),
     rating: 1200,
     votes: 0
   },
@@ -316,7 +318,7 @@ export const foundersData: FounderData[] = [
     name: "Ibo",
     company: "Peazehub",
     username: "@ibocodes",
-    image: "/list/ibocodes.jpg",
+    image: getImageKitPath("ibocodes"),
     rating: 1200,
     votes: 0
   },
@@ -324,7 +326,87 @@ export const foundersData: FounderData[] = [
     name: "Theo",
     company: "T3.chat",
     username: "@theo",
-    image: "/list/theo.jpg",
+    image: getImageKitPath("theo"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Nang",
+    company: "Pear AI",
+    username: "@not_nang",
+    image: getImageKitPath("not_nang"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Iosifache",
+    company: "Broke Hotsmash",
+    username: "@iosifache",
+    image: getImageKitPath("iosifache"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Zaid",
+    company: "Scira AI",
+    username: "@zaidmukaddam",
+    image: getImageKitPath("zaidmukaddam"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Onkar",
+    company: "Appolo Link",
+    username: "@ionkarbatra",
+    image: getImageKitPath("ionkarbatra"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Siya",
+    company: "Context Suite",
+    username: "@siyabuilt",
+    image: getImageKitPath("siyabuilt"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Katherine",
+    company: "Seraphine Glasses",
+    username: "@katherineh4_",
+    image: getImageKitPath("katherineh4_"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Miranda",
+    company: "Fort.cx",
+    username: "@miranda_nover",
+    image: getImageKitPath("miranda_nover"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Wes",
+    company: "mvp.new",
+    username: "@weswinder",
+    image: getImageKitPath("weswinder"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "RA",
+    company: "Quiet Intent",
+    username: "@ralabs_",
+    image: getImageKitPath("ralabs_"),
+    rating: 1200,
+    votes: 0
+  },
+  {
+    name: "Toms",
+    company: "Roam.lol",
+    username: "@TomsCe",
+    image: getImageKitPath("TomsCe"),
     rating: 1200,
     votes: 0
   }

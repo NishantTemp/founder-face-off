@@ -1,0 +1,106 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for security
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      // Add your admin user IDs here
+      return request.auth != null && 
+             request.auth.uid in ['YOUR_ADMIN_UID_1', 'YOUR_ADMIN_UID_2'];
+    }
+    
+    function isValidVote() {
+      return request.resource.data.keys().hasAll(['winnerId', 'loserId', 'winnerName', 'loserName', 'browserId']) &&
+             request.resource.data.winnerId is string &&
+             request.resource.data.loserId is string &&
+             request.resource.data.winnerName is string &&
+             request.resource.data.loserName is string &&
+             request.resource.data.browserId is string &&
+             request.resource.data.winnerId != request.resource.data.loserId;
+    }
+    
+    function isValidFounderUpdate() {
+      // Only allow updating rating and votes fields
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'votes', 'updatedAt']) &&
+             request.resource.data.rating is int &&
+             request.resource.data.votes is int &&
+             request.resource.data.rating >= 0 &&
+             request.resource.data.votes >= 0;
+    }
+    
+    function isRateLimited() {
+      // Server-side rate limiting check (basic)
+      // In production, use a more sophisticated rate limiting service
+      return true; // Implement your rate limiting logic here
+    }
+    
+    // FOUNDERS COLLECTION
+    match /founders/{founderId} {
+      // Anyone can read founders (for public voting)
+      allow read: if true;
+      
+      // Only admins can create new founders
+      allow create: if isAdmin() && 
+                       request.resource.data.keys().hasAll(['name', 'company', 'username', 'image', 'rating', 'votes']) &&
+                       request.resource.data.rating == 1200 &&
+                       request.resource.data.votes == 0;
+      
+      // Only allow specific updates to rating/votes (via Cloud Functions ideally)
+      allow update: if isValidFounderUpdate();
+      
+      // Only admins can delete founders
+      allow delete: if isAdmin();
+    }
+    
+    // VOTES COLLECTION  
+    match /votes/{voteId} {
+      // Anyone can read votes (for statistics)
+      allow read: if true;
+      
+      // Authenticated users can create votes with validation and rate limiting
+      allow create: if isSignedIn() && 
+                       isValidVote() && 
+                       isRateLimited();
+      
+      // No updates or deletes allowed on votes (immutable)
+      allow update: if false;
+      allow delete: if isAdmin(); // Only admins can delete for moderation
+    }
+    
+    // STATS COLLECTION
+    match /stats/{statId} {
+      // Anyone can read stats
+      allow read: if true;
+      
+      // Only system/admins can update stats
+      allow write: if isAdmin();
+    }
+    
+    // USER RATE LIMITING COLLECTION (for advanced rate limiting)
+    match /userLimits/{userId} {
+      // Users can read their own limits
+      allow read: if isOwner(userId);
+      
+      // System can update limits
+      allow write: if isAdmin();
+    }
+    
+    // ADMIN LOGS COLLECTION (for audit trail)
+    match /adminLogs/{logId} {
+      // Only admins can read logs
+      allow read: if isAdmin();
+      
+      // Only system can write logs
+      allow write: if isAdmin();
+    }
+  }
+} 

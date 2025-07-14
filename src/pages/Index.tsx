@@ -11,31 +11,15 @@ import {
   getTotalVotes
 } from '@/lib/firebaseService';
 import { rateLimiter } from '@/lib/rateLimiter';
+import voteQueue from '@/lib/voteQueue';
+import { getImageKitPath, convertLocalToImageKit } from '@/lib/cdn';
+import { Image as ImageKitImage } from '@imagekit/react';
 
 import { foundersData } from '@/data/founders';
 
-// Voting Stats Component
-const VotingStats = () => {
-  const [stats, setStats] = useState(rateLimiter.getVotingStats());
 
-  useEffect(() => {
-    const updateStats = () => {
-      setStats(rateLimiter.getVotingStats());
-    };
 
-    // Update stats every 5 seconds
-    const interval = setInterval(updateStats, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
-  return (
-    <div className="flex justify-center gap-4 text-xs">
-      <span>Your votes today: {stats.votesToday}/{stats.maxVotesPerDay}</span>
-      <span>This hour: {stats.votesThisHour}/{stats.maxVotesPerHour}</span>
-      <span>Unique pairs: {stats.uniquePairsVoted}</span>
-    </div>
-  );
-};
 
 // Using the real founders data
 
@@ -47,6 +31,7 @@ const Index = () => {
   const [error, setError] = useState<string | null>(null);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
   const [cooldownTimer, setCooldownTimer] = useState<number>(0);
+  const [syncing, setSyncing] = useState<boolean>(false);
 
   // Elo rating calculation (original Facemash algorithm)
   const calculateEloRating = (winnerRating: number, loserRating: number) => {
@@ -66,66 +51,82 @@ const Index = () => {
     return [shuffled[0], shuffled[1]];
   };
 
-  // Load founders data - with Firebase fallback
+  // Load founders data - show local immediately, sync with Firebase in background
   const loadFounders = async () => {
     try {
       setLoading(true);
       setError(null);
       
-
-      
-      // Try Firebase first, but with reasonable timeout for production
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Firebase timeout')), 10000)
-      );
-      
-             try {
-         const existingFounders = await Promise.race([
-           getFounders(),
-           timeoutPromise
-         ]) as Founder[];
-         
-         if (existingFounders.length === 0) {
-           // Try to initialize, but fall back if it fails
-           try {
-             const initialized = await initializeFounders(foundersData);
-             setFounders(initialized);
-           } catch (initError) {
-             throw initError;
-           }
-         } else {
-           setFounders(existingFounders);
-         }
-        
-        // Try to get total votes, but don't fail if it doesn't work
-        try {
-          const votes = await getTotalVotes();
-          setTotalVotes(votes);
-        } catch (voteError) {
-          setTotalVotes(0);
-        }
-        
-      } catch (firebaseError) {
-        throw firebaseError;
-      }
-      
-    } catch (err) {
-      // Fallback to local data with proper IDs
-      const fallbackFounders = foundersData.map((f, index) => ({ 
+      // Show local data immediately for fast UI
+      const localFounders = foundersData.map((f, index) => ({ 
         ...f, 
         id: `local-${index}`,
         createdAt: new Date(),
         updatedAt: new Date()
       }));
-      setFounders(fallbackFounders);
+      
+      // Set local data immediately to show UI fast
+      setFounders(localFounders);
       setTotalVotes(0);
-    } finally {
       setLoading(false);
+      
+      // Now try to sync with Firebase in background (with shorter timeout)
+      setSyncing(true);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Firebase timeout')), 3000) // Reduced to 3 seconds
+      );
+      
+      try {
+        const existingFounders = await Promise.race([
+          getFounders(),
+          timeoutPromise
+        ]) as Founder[];
+        console.log('Firebase founders fetched:', existingFounders);
+        if (existingFounders.length > 0) {
+          console.log('First Firebase founder:', existingFounders[0]);
+          console.log('First Firebase founder ID:', existingFounders[0].id);
+        }
+        
+        if (existingFounders.length > 0) {
+          // Update with Firebase data if available
+          setFounders(existingFounders);
+          setCurrentPair(getRandomPair(existingFounders)); // Reset current pair to use Firebase founders
+          console.log('Set founders from Firebase and reset currentPair.');
+          
+          // Get total votes in background
+          try {
+            const votes = await getTotalVotes();
+            setTotalVotes(votes);
+          } catch (voteError) {
+            // Keep local total votes count
+          }
+        } else {
+          // Try to initialize Firebase with local data
+          try {
+            const initialized = await initializeFounders(foundersData);
+            setFounders(initialized);
+          } catch (initError) {
+            // Keep using local data
+          }
+        }
+      } catch (firebaseError) {
+        // Silently continue with local data - no error shown to user
+        console.log('Firebase sync failed, using local data:', firebaseError);
+      } finally {
+        setSyncing(false);
+      }
+      
+    } catch (err) {
+      // This should rarely happen now since we show local data first
+      setError('Failed to load data. Please try again.');
+      setLoading(false);
+      setSyncing(false);
     }
   };
 
   // Handle vote
   const handleVote = async (winnerId: string, loserId: string) => {
+    console.log('handleVote called', { winnerId, loserId });
     try {
       // Check rate limiting
       const rateLimitCheck = rateLimiter.canVote(winnerId, loserId);
@@ -165,6 +166,21 @@ const Index = () => {
       // Record the vote in rate limiter first
       rateLimiter.recordVote(winnerId, loserId);
       
+      // Queue the vote for later processing instead of immediate Firebase call
+      if (!winnerId.startsWith('local-')) {
+        voteQueue.queueVote({
+          winnerId,
+          loserId,
+          winnerName: winner.name,
+          loserName: loser.name,
+          winnerRating: winner.rating,
+          loserRating: loser.rating,
+          newWinnerRating,
+          newLoserRating,
+          browserId: rateLimiter.getBrowserId(),
+        });
+      }
+      
       // Update local state IMMEDIATELY for instant UX
       setFounders(prevFounders => {
         const updatedFounders = prevFounders.map(founder => {
@@ -187,22 +203,6 @@ const Index = () => {
       setRateLimitMessage(null);
       setCooldownTimer(0);
       
-      // Update Firebase in the background (don't await - fire and forget)
-      if (!winnerId.startsWith('local-')) {
-        Promise.all([
-          updateFounderRatings(winnerId, loserId, newWinnerRating, newLoserRating),
-          recordVote({
-            winnerId,
-            loserId,
-            winnerName: winner.name,
-            loserName: loser.name,
-            browserId: rateLimiter.getBrowserId()
-          })
-        ]).catch(() => {
-          // Silent fail for background updates
-        });
-      }
-      
     } catch (err) {
       setError('Failed to record vote. Please try again.');
     }
@@ -215,6 +215,22 @@ const Index = () => {
   // Initialize data on component mount
   useEffect(() => {
     loadFounders();
+  }, []);
+
+  // Process any existing queued votes when component mounts and cleanup on unmount
+  useEffect(() => {
+    // Process existing votes in queue on mount
+    if (voteQueue.hasPendingVotes()) {
+      voteQueue.processQueue().catch(console.error);
+    }
+
+    // Cleanup function when component unmounts
+    return () => {
+      // Force sync any remaining votes before unmounting
+      if (voteQueue.hasPendingVotes()) {
+        voteQueue.forcSync().catch(console.error);
+      }
+    };
   }, []);
 
   // Set initial pair when founders data is loaded
@@ -276,7 +292,10 @@ const Index = () => {
       {/* Header */}
       <div className="bg-[#8B0000] text-white py-4">
         <div className="container mx-auto px-4">
-          <h1 className="text-center text-2xl font-bold tracking-wider">HOTSMASH</h1>
+          <div className="flex items-center justify-center gap-2">
+            <h1 className="text-center text-2xl font-bold tracking-wider">HOTSMASH</h1>
+            
+          </div>
           <p className="text-center text-sm mt-1 opacity-90">
             Built by{' '}
             <a 
@@ -335,10 +354,16 @@ const Index = () => {
                 : 'border-gray-200 hover:border-[#8B0000]'
             }`}
                   onClick={() => handleVote(currentPair[0].id, currentPair[1].id)}>
-              <img 
-                src={currentPair[0].image} 
+              <ImageKitImage
+                src={currentPair[0].image}
                 alt={currentPair[0].name}
                 className="w-48 h-64 face-crop rounded mb-4 mx-auto"
+                loading="lazy"
+                transformation={[{
+                  height: '256',
+                  width: '192',
+                  crop: 'maintain_ratio'
+                }]}
               />
               <h3 className="font-semibold text-lg mb-1">{currentPair[0].name}</h3>
               <p className="text-gray-600 text-sm mb-1">{currentPair[0].company}</p>
@@ -365,10 +390,16 @@ const Index = () => {
                 : 'border-gray-200 hover:border-[#8B0000]'
             }`}
                   onClick={() => handleVote(currentPair[1].id, currentPair[0].id)}>
-              <img 
-                src={currentPair[1].image} 
+              <ImageKitImage
+                src={currentPair[1].image}
                 alt={currentPair[1].name}
                 className="w-48 h-64 face-crop rounded mb-4 mx-auto"
+                loading="lazy"
+                transformation={[{
+                  height: '256',
+                  width: '192',
+                  crop: 'maintain_ratio'
+                }]}
               />
               <h3 className="font-semibold text-lg mb-1">{currentPair[1].name}</h3>
               <p className="text-gray-600 text-sm mb-1">{currentPair[1].company}</p>
@@ -384,10 +415,7 @@ const Index = () => {
         </div>
 
         {/* Stats */}
-        <div className="text-center text-gray-600 text-sm space-y-2">
-          <p>Total Votes Cast: {totalVotes}</p>
-          <VotingStats />
-        </div>
+        
 
         {/* Top 10 Rankings */}
         <div className="mt-12">
@@ -407,10 +435,16 @@ const Index = () => {
                 <div key={founder.id} className="flex items-center justify-between p-3 border-b border-gray-200">
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-[#8B0000] w-6">#{index + 1}</span>
-                    <img 
-                      src={founder.image} 
+                    <ImageKitImage
+                      src={founder.image}
                       alt={founder.name}
                       className="w-12 h-12 face-crop-profile rounded-full"
+                      loading="lazy"
+                      transformation={[{
+                        height: '48',
+                        width: '48',
+                        crop: 'maintain_ratio'
+                      }]}
                     />
                     <div>
                       <p className="font-semibold">{founder.name}</p>
@@ -426,6 +460,66 @@ const Index = () => {
               ))}
           </div>
         </div>
+
+        {/* Developer Testing Panel (only show in development) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-12 max-w-md mx-auto">
+            <details className="bg-gray-100 rounded-lg p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-gray-700 mb-2">
+                🔧 Vote Queue Testing (Dev Only)
+              </summary>
+              <div className="space-y-2 text-xs">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => voteQueue.addTestVote()}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Add Test Vote
+                  </Button>
+                  <Button
+                    onClick={() => voteQueue.forcSync()}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Force Sync
+                  </Button>
+                  <Button
+                    onClick={() => voteQueue.clearQueue()}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs text-red-600"
+                  >
+                    Clear Queue
+                  </Button>
+                </div>
+                <div className="text-gray-600 space-y-2">
+                  <div>
+                    <p>Queue: {voteQueue.getQueueStats().pendingVotes} votes</p>
+                    <p>Processing: {voteQueue.getQueueStats().isProcessing ? 'Yes' : 'No'}</p>
+                  </div>
+                  
+                  <div className="border-t pt-2">
+                    <p className="font-semibold text-gray-700 mb-1">🖼️ ImageKit Testing</p>
+                    <p>Sample Path: {getImageKitPath("nizzyabi")}</p>
+                    <p>Local → ImageKit: {convertLocalToImageKit("/list/levelsio.jpg")}</p>
+                    {currentPair && (
+                      <p>Current pair images: ImageKit {currentPair[0].image.includes('/list/') ? '✅' : '❌'}</p>
+                    )}
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mt-1">
+                    • Votes cache locally and sync when you leave the page
+                    • All images now load from ImageKit CDN
+                    • Check console for queue activity logs
+                  </p>
+                </div>
+              </div>
+            </details>
+          </div>
+        )}
       </div>
     </div>
   );
