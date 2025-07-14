@@ -282,7 +282,7 @@ export const foundersData: FounderData[] = [
   },
   {
     name: "Patty",
-    company: "Fyp.bot",
+    company: "globol.app",
     username: "@pattybuilds",
     image: "/list/pattybuilds.jpeg",
     rating: 1200,
